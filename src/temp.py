@@ -8,8 +8,9 @@ from Crypto.Util.number import inverse
 from Crypto.Hash import HMAC, SHA256
 from sympy.ntheory.modular import crt
 from curve_operation import EllipticCurve,curve_params
+from src.logger import init_log
 
-logging.basicConfig(level=logging.INFO)
+init_log(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 SERVER_URL = 'http://45.132.17.192:8080'
