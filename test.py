@@ -35,6 +35,8 @@ def encrypt_file(file_path):
 
 # Пример использования
 encrypted = encrypt_file("test.txt")
+with open("enc1.txt", 'wb') as f:
+    f.write(encrypted)
 
 def decrypt_file(encrypted_data, save_to_file=None):
     url = f"{SERVER_URL}/decrypt"

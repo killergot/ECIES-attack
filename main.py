@@ -1,38 +1,112 @@
-a= 0xffffffff00000001000000000000000000000000fffffffffffffffffffffffc
-b= 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b
-p=0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
-b1 = 3
-b2 = 6
-b3 = 18
+import asyncio
+import logging
+import aiohttp
+import secrets
+from hashlib import sha512
+from Crypto.Util.number import bytes_to_long, long_to_bytes
+from Crypto.Util.number import inverse
+from Crypto.Hash import HMAC, SHA256
+from sympy.ntheory.modular import crt
+from src.curve_operation import EllipticCurve
+from src.consts import curve_params
+from src.logger import init_log
 
-# Пример отобранных для проведения атаки значений (в виде (b, l, 𝑅𝑖𝑛𝑣))
-exemple = [(1, 71, (36736174255430481322464234874556528245203675859399413306108823132070684213726,
-71216636841328212438673497139478287243103393296160619745025773562518613953888)),
-(3, 7, (86861948779320723735809409166338661013924870073533153401405380363591285609445 ,
-92959093380773739239256843672796491295827279525897738876018216604059003433908)),
-(3, 13, (103036411228144032028317979289017837935011730613883144548126938746409368311935 ,
-48489375743398105900530688649564883692387604260644442869328533348008113953260)),
-(3, 37, (6829338390266237482283310246665103308891228336319477318479644522260556056309 ,
-41090420942805220562393108111996992853311669414049431247759332665206023742070)),
-(4, 179, (83229040458127123746763986781924855834855773376892353224964588596517159218446 ,
-89598705492901877225454412430249165727296653092812945717144067107278708102557)),
-(6, 5, (39750170337003670022494616352462194843889127399495951655079750874966815322615 ,
-65141808569782695839169856395194564992307712545138211871768272355352435143036)),
-(10, 17, (28441888532776736443884565435952912890996156064275160816382945068056727079366 ,
-62774884647663948051590459932614506163828928024892425144614982360172294976753))]
+init_log(logging.DEBUG)
+log = logging.getLogger(__name__)
+
+SERVER_URL = 'http://45.132.17.192:8080'
+
+# Параметры кривой secp256r1
+p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
+a = p - 3
+n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+
+P = (0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296,
+     0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5)
+
+a = None
+with open('enc1.txt', 'rb') as f:
+    a = f.read()
 
 
-curve_params  = [(1, 71, (36736174255430481322464234874556528245203675859399413306108823132070684213726,
-71216636841328212438673497139478287243103393296160619745025773562518613953888)),
-(3, 7, (86861948779320723735809409166338661013924870073533153401405380363591285609445 ,
-92959093380773739239256843672796491295827279525897738876018216604059003433908)),
-(3, 13, (103036411228144032028317979289017837935011730613883144548126938746409368311935 ,
-48489375743398105900530688649564883692387604260644442869328533348008113953260)),
-(3, 37, (6829338390266237482283310246665103308891228336319477318479644522260556056309 ,
-41090420942805220562393108111996992853311669414049431247759332665206023742070)),
-(4, 179, (83229040458127123746763986781924855834855773376892353224964588596517159218446 ,
-89598705492901877225454412430249165727296653092812945717144067107278708102557)),
-(6, 5, (39750170337003670022494616352462194843889127399495951655079750874966815322615 ,
-65141808569782695839169856395194564992307712545138211871768272355352435143036)),
-(10, 17, (28441888532776736443884565435952912890996156064275160816382945068056727079366 ,
-62774884647663948051590459932614506163828928024892425144614982360172294976753))]
+# Вспомогательные классы и функции
+
+def KDF(K_x):
+    hash_result = sha512(str(K_x).encode("utf-8")).digest()
+    return hash_result[:32], hash_result[32:]
+
+
+def generate_invalid_point(l):
+    pass
+
+
+def construct_payload(x, y, ciphertext, tag):
+    point = b'\x04' + long_to_bytes(x, 32) + long_to_bytes(y, 32)
+    return point + tag + ciphertext
+
+
+async def send_request(session, payload, attempt_id):
+    try:
+        data = aiohttp.FormData()
+        data.add_field('file', payload, filename='fake.bin')
+        async with session.post(f"{SERVER_URL}/decrypt", data=data) as response:
+            return response.status == 200
+    except Exception as e:
+        log.error(f"Ошибка: {e}")
+        return False
+
+d_moduli = []
+
+async def attack(b_i, l_i, R_inv, session):
+    print(b_i, l_i, R_inv, sep=',')
+    ciphertext = b'\x5F\x5F\x81\xD3\x60\x91\xA7\x63'
+
+    curve = EllipticCurve(b_i)
+    found = False
+    for j in range(1, l_i):
+        K = curve.multiply(R_inv, j)
+        if K == (0,1):
+            continue
+        K_x, _ = K
+        _, kev_mac = KDF(K_x)
+        hmac = HMAC.new(kev_mac, digestmod=SHA256)
+        hmac.update(ciphertext)
+        new_tag = hmac.digest()
+        payload = construct_payload(R_inv[0], R_inv[1], ciphertext, new_tag)
+        success = await send_request(session, payload, f"l_{l_i}_j_{j}")
+        if success:
+            log.debug(f"l_{l_i}_j_{j}")
+            d_moduli.append((l_i, j))
+            found = True
+            break
+    if not found:
+        d_moduli.append((l_i, 0))
+
+
+async def worker(session, curve_param):
+    await attack(curve_param[0], curve_param[1], curve_param[2], session)
+
+async def main():
+    timeout = aiohttp.ClientTimeout(total=30)
+    connector = aiohttp.TCPConnector(limit=100)
+
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+        tasks = []
+        for param in curve_params:
+            tasks.append(worker(session, param))
+
+        await asyncio.gather(*tasks)
+
+    print(f'{d_moduli = }')
+
+
+
+    moduli = [li for li, _ in d_moduli]
+    residues = [j % li for li, j in d_moduli]
+    d, M = crt(moduli, residues)
+    print(f"Восстановленный ключ: {d}, {M = }")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
