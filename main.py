@@ -36,12 +36,9 @@ def KDF(K_x):
     return hash_result[:32], hash_result[32:]
 
 
-def generate_invalid_point(l):
-    pass
-
-
 def construct_payload(x, y, ciphertext, tag):
-    point = b'\x04' + long_to_bytes(x, 32) + long_to_bytes(y, 32)
+    # point = b'\x04' + long_to_bytes(x, 32) + long_to_bytes(y, 32)
+    point = b'\x04' + x.to_bytes(32, byteorder='big') + y.to_bytes(32, byteorder='big')
     return point + tag + ciphertext
 
 
@@ -50,12 +47,16 @@ async def send_request(session, payload, attempt_id):
         data = aiohttp.FormData()
         data.add_field('file', payload, filename='fake.bin')
         async with session.post(f"{SERVER_URL}/decrypt", data=data) as response:
-            return response.status == 200
+            if response.status == 200:
+                log.debug(response.text)
+                return True
     except Exception as e:
         log.error(f"Ошибка: {e}")
         return False
 
 d_moduli = []
+
+
 
 async def attack(b_i, l_i, R_inv, session):
     print(b_i, l_i, R_inv, sep=',')
@@ -98,7 +99,6 @@ async def main():
         await asyncio.gather(*tasks)
 
     print(f'{d_moduli = }')
-
 
 
     moduli = [li for li, _ in d_moduli]
