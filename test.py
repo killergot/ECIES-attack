@@ -48,19 +48,20 @@ def decrypt_file(encrypted_data, save_to_file=None):
         print("[+] Успешно расшифровали файл.")
         print(f"[+] Длина расшифрованных данных: {len(decrypted_data)} байт")
 
-        if save_to_file:
+        if not save_to_file:
             with open(save_to_file, 'wb') as f:
                 f.write(decrypted_data)
             print(f"[+] Расшифрованные данные сохранены в: {save_to_file}")
 
         else:
-            print(f"[+] Первые 100 байт расшифрованного файла: {decrypted_data[:100].hex()}...")
+            print(f"[+] Первые 100 байт расшифрованного файла: {response.text}...")
 
         return decrypted_data
     else:
         print("[-] Ошибка при расшифровке:", response.status_code, response.text)
         return None
 
+
 # Пример использования
-decrypt_file(encrypted, save_to_file="decrypted_output.txt")
+decrypt_file(encrypted+b'\x21', save_to_file="decrypted_output.txt")
 

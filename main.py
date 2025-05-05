@@ -45,11 +45,11 @@ def construct_payload(x, y, ciphertext, tag):
 async def send_request(session, payload, attempt_id):
     try:
         data = aiohttp.FormData()
-        data.add_field('file', payload, filename='fake.bin')
+        data.add_field('file', payload, filename='fake.bin',content_type='application/octet-stream')
         async with session.post(f"{SERVER_URL}/decrypt", data=data) as response:
             if response.status == 200:
-                log.debug(response.text)
                 return True
+            return False
     except Exception as e:
         log.error(f"Ошибка: {e}")
         return False
