@@ -1,6 +1,6 @@
 import requests
 
-SERVER_URL = 'http://45.132.17.192:8080'
+SERVER_URL = 'http://10.0.179.150:5000'
 
 
 def encrypt_file(file_path):
@@ -63,5 +63,5 @@ def decrypt_file(encrypted_data, save_to_file=None):
 
 
 # Пример использования
-decrypt_file(encrypted+b'\x21', save_to_file="decrypted_output.txt")
+decrypt_file(encrypted, save_to_file="decrypted_output.txt")
 

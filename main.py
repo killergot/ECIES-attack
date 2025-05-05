@@ -1,11 +1,10 @@
 import asyncio
 import logging
 import aiohttp
-import secrets
+
 from hashlib import sha512
-from Crypto.Util.number import bytes_to_long, long_to_bytes
-from Crypto.Util.number import inverse
 from Crypto.Hash import HMAC, SHA256
+
 from sympy.ntheory.modular import crt
 from src.curve_operation import EllipticCurve
 from src.consts import curve_params
@@ -99,7 +98,6 @@ async def main():
         await asyncio.gather(*tasks)
 
     print(f'{d_moduli = }')
-
 
     moduli = [li for li, _ in d_moduli]
     residues = [j % li for li, j in d_moduli]
