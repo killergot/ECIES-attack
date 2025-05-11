@@ -11,8 +11,9 @@ from hashlib import sha512
 
 
 ECC = EllipticCurve(0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b)
-P = (0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296, 0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5)
-d = 13
+P = (0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296,
+         0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5)
+d = 993913066640853197984481546239524653
 Q = ECC.multiply(P,d)
 
 def KDF(K_x):
@@ -24,7 +25,6 @@ def KDF(K_x):
 def construct_payload(x, y, c, tag):
     # point = b'\x04' + long_to_bytes(x, 32) + long_to_bytes(y, 32)
     point = b'\x04' + x.to_bytes(32, byteorder='big') + y.to_bytes(32, byteorder='big')
-    print(point,tag,c)
     return point + tag + c
 
 
@@ -46,10 +46,12 @@ def parse_point(point: bytes):
 
 def ECIES_decrypt(data):
     R = data[1:65]
-    t = data[65:96]
-    c = data[96:]
+    t = data[65:97]
+    c = data[97:]
+
 
     K = parse_point(R)
+    K = ECC.multiply(K,d)
     sym_key, mac_key = KDF(K[0])
     t_true = get_mac(mac_key,c)
     if t_true != t:
@@ -108,7 +110,8 @@ def aes_ctr_decrypt(ciphertext: bytes, key: bytes) -> bytes:
 
 # Пример использования
 if __name__ == "__main__":
-    key = get_random_bytes(32)  # AES-256 (32 байта)
+    key = 993913066640853197984481546239524653
+    key = key.to_bytes(length=32)
     plaintext = b"Hello, world! This is a secret message."
 
     # Шифруем (nonce = 8 байт)
@@ -121,6 +124,5 @@ if __name__ == "__main__":
     print("Decrypted:", decrypted.decode())
 
     test = ECIES_encrypt(b'test')
-    print(test)
     a = ECIES_decrypt(test)
     print(a)

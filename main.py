@@ -137,7 +137,4 @@ if __name__ == "__main__":
     parser.add_argument('Q_y',type=int)
     args = parser.parse_args()
 
-
-    Q = (0xbec1519f1752a10c462f801d4c7359c1d4f21e8ec486a3b7affff8072eb313,
-         0x7407f5ab9e17ab8a6fc18581974d2b77f8c3c2795087b7364cd5d70ed0a7fb89)
     asyncio.run(main(args.server_url, (args.Q_x,args.Q_y)))

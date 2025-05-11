@@ -1,6 +1,6 @@
 import requests
 
-SERVER_URL = 'http://10.0.179.150:5000'
+SERVER_URL = 'http://localhost:8001'
 
 
 def encrypt_file(file_path):
@@ -60,8 +60,9 @@ def decrypt_file(encrypted_data, save_to_file=None):
     else:
         print("[-] Ошибка при расшифровке:", response.status_code, response.text)
         return None
-
-
-# Пример использования
-decrypt_file(encrypted, save_to_file="decrypted_output.txt")
+if __name__ == '__main__':
+    # Пример использования
+    with open("enc2.txt", 'rb') as f:
+        encrypted_data = f.read()
+    decrypt_file(encrypted_data, save_to_file="decrypted_output1.txt")
 
