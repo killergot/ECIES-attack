@@ -58,8 +58,10 @@ def decrypt_file(encrypted_data, save_to_file=None):
 
         return decrypted_data
     else:
-        print("[-] Ошибка при расшифровке:", response.status_code, response.text)
+        print("[-] Ошибка при расшифровке:", response.status_code,  response.text)
         return None
+
+
 if __name__ == '__main__':
     # Пример использования
     with open("enc2.txt", 'rb') as f:

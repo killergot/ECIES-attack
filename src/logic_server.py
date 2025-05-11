@@ -1,3 +1,5 @@
+import os
+
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 from Crypto.Random import get_random_bytes
@@ -19,8 +21,6 @@ Q = ECC.multiply(P,d)
 def KDF(K_x):
     hash_result = sha512(str(K_x).encode("utf-8")).digest()
     return hash_result[:32], hash_result[32:]
-
-
 
 def construct_payload(x, y, c, tag):
     # point = b'\x04' + long_to_bytes(x, 32) + long_to_bytes(y, 32)
@@ -77,18 +77,22 @@ def aes_ctr_encrypt(plaintext: bytes, key: bytes, nonce_len: int = 8) -> bytes:
     :param nonce_len: Длина nonce (обычно 8 байт).
     :return: (nonce, ciphertext) – nonce и зашифрованные данные.
     """
-    nonce = get_random_bytes(nonce_len)  # Генерируем nonce (по умолчанию 8 байт)
+    nonce = os.urandom(nonce_len)
 
-    # Создаём счётчик (nonce + нулевой счётчик)
-    ctr = Counter.new(64, prefix=nonce, initial_value=0)  # 64 бита = 8 байт
+    # Создание счетчика (counter) для режима CTR
+    ctr = Counter.new(64, prefix=nonce)
 
+    # Инициализация шифра с использованием AES в режиме CTR
     cipher = AES.new(key, AES.MODE_CTR, counter=ctr)
+
+    # Шифрование данных
     ciphertext = cipher.encrypt(plaintext)
 
-    return (nonce + ciphertext)
+    # Возвращаем результат: nonce + ciphertext
+    return nonce + ciphertext
 
 
-def aes_ctr_decrypt(ciphertext: bytes, key: bytes) -> bytes:
+def aes_ctr_decrypt(ciphertext: bytes, key: bytes, nonce_len: int = 8) -> bytes:
     """
     Дешифрует данные, зашифрованные AES-CTR (PyCryptodome).
 
@@ -97,13 +101,19 @@ def aes_ctr_decrypt(ciphertext: bytes, key: bytes) -> bytes:
     :param nonce: Nonce, использованный при шифровании.
     :return: Расшифрованные данные.
     """
-    nonce = ciphertext[:8]
-    ciphertext = ciphertext[8:]
-    # Восстанавливаем счётчик (как при шифровании)
-    ctr = Counter.new(64, prefix=nonce, initial_value=0)  # 64 бита = 8 байт
+    nonce = ciphertext[:nonce_len]
 
+    # Извлекаем зашифрованное сообщение
+    encrypted_message = ciphertext[nonce_len:]
+
+    # Создание счетчика (counter) для режима CTR
+    ctr = Counter.new(64, prefix=nonce)
+
+    # Инициализация дешифра с использованием AES в режиме CTR
     cipher = AES.new(key, AES.MODE_CTR, counter=ctr)
-    plaintext = cipher.decrypt(ciphertext)
+
+    # Дешифрование данных
+    plaintext = cipher.decrypt(encrypted_message)
 
     return plaintext
 
@@ -111,7 +121,7 @@ def aes_ctr_decrypt(ciphertext: bytes, key: bytes) -> bytes:
 # Пример использования
 if __name__ == "__main__":
     key = 993913066640853197984481546239524653
-    key = key.to_bytes(length=32)
+    key = key.to_bytes(length=32,byteorder='big')
     plaintext = b"Hello, world! This is a secret message."
 
     # Шифруем (nonce = 8 байт)
@@ -119,7 +129,6 @@ if __name__ == "__main__":
     print("Nonce (8 bytes):", ciphertext[:8].hex())
     print("Ciphertext:", ciphertext.hex())
 
-    # Дешифруем
     decrypted = aes_ctr_decrypt(ciphertext, key)
     print("Decrypted:", decrypted.decode())
 
